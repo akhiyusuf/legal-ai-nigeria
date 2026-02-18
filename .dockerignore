@@ -1,0 +1,14 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.dockerignore
+.vercel
+deployment.log
+static/screenshots/*.png
+data/chroma/
+data/legal_graph.pkl
