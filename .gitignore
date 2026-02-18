@@ -27,12 +27,13 @@ wheels/
 .installed.cfg
 *.egg
 
-# Databases
-data/chroma/
-data/legal_graph.pkl
-static/screenshots/*.png
+# Databases (Bundled for Vercel/Cloud deployment)
+# data/chroma/
+# data/legal_graph.pkl
+# static/screenshots/*.png
 
 # System
 .DS_Store
 *.log
 /tmp/
+.vercel
