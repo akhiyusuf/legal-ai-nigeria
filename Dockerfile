@@ -20,8 +20,8 @@ COPY . .
 # Install dependencies from requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install SpaCy model
-RUN python -m spacy download en_core_web_sm
+# Install SpaCy model directly from URL to avoid downloader issues
+RUN pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 
 # Expose the FastAPI port (Railway will use PORT env var)
 EXPOSE 8000
