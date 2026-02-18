@@ -17,8 +17,8 @@ COPY . .
 # Install dependencies from requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download the spaCy model (latest version available)
-RUN python -m spacy download en_core_web_sm
+# Download the spaCy model directly via link (bypasses downloader bug)
+RUN pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 
 # Expose the FastAPI port
 EXPOSE 8000
