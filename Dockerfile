@@ -20,8 +20,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Download the spaCy model directly via link (bypasses downloader bug)
 RUN pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 
-# Expose the FastAPI port
+# Expose the FastAPI port (Railway will use PORT env var)
 EXPOSE 8000
 
-# Start command
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start command (Railway will override PORT if set, but we use the env var)
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
