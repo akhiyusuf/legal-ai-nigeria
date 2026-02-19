@@ -55,36 +55,38 @@ class GroqService:
         """
         Produce a grounded answer with citations.
         """
-        # Format Context
-        context_str = "\n\n".join([
-            f"ID: {c['id']}\nTitle: {c['metadata'].get('title')}\nSection: {c['metadata'].get('section_ref')}\nContent: {c['content']}" 
-            for c in context_chunks
-        ])
-        
-        # Format Graph context (e.g., entity relationships)
-        graph_str = "\n".join(graph_paths)
+        # Format Context with a clear separator
+        context_str = ""
+        for i, c in enumerate(context_chunks):
+            context_str += f"--- SOURCE {i+1} ---\n"
+            context_str += f"ID: {c['id']}\n"
+            context_str += f"TITLE: {c['metadata'].get('title')}\n"
+            context_str += f"SECTION: {c['metadata'].get('section_ref', 'N/A')}\n"
+            context_str += f"PAGE: {c['metadata'].get('page_number', 'N/A')}\n"
+            context_str += f"CONTENT: {c['content']}\n\n"
         
         system_prompt = f"""
-        You are an expert legal assistant specialized in the laws of {settings.COUNTRY}.
-        Your goal is to answer the user's question using the provided legal context.
+        You are a highly professional Legal Assistant for {settings.COUNTRY} laws.
+        You will be provided with specific legal context (SOURCE 1, SOURCE 2, etc.).
         
-        ### Rules:
-        1. Base your answer ONLY on the provided context. If unsure, state it.
-        2. ALWAYS cite the source using the exact ID provided in the context: [ID: ID_HERE].
-           Example: [ID: local://doc.pdf#page=1]
-        3. ACCURACY IS CRITICAL: Use the [[ DOCUMENT | LOCATION ]] tag at the start of each chunk for your internal reasoning to identify the correct Part and Section.
-        4. **CRITICAL**: DO NOT include the [[ DOCUMENT | LOCATION ]] tag in your final response to the user. Use only your own words and [ID: ...] citations.
-        5. Use a formal, legal tone but remain accessible.
+        ### MANDATORY INSTRUCTIONS:
+        1. SYNTHESIZE a clear, helpful answer to the user's question based ONLY on the provided SOURCES.
+        2. DO NOT just list or repeat the sources. Write a cohesive legal explanation.
+        3. CITE your sources inline using the exact ID format: [ID: ID_VALUE].
+           Example: "...as stated in the Constitution [ID: local://Constitution.pdf#page=5]."
+        4. If the provided sources do not contain the answer, say: "I'm sorry, but I couldn't find specific information regarding that in my current legal database."
+        5. NEVER use the internal reasoning tags (like [[ DOCUMENT | LOCATION ]]) in your final response.
+        6. MAINTAIN a formal yet helpful tone.
         
-        ### Context:
+        ### LEGAL CONTEXT (SOURCES):
         {context_str}
         
-        ### Disclaimer:
+        ### DISCLAIMER:
         "This information is for informational purposes only and is not legal advice."
         """
 
         messages = [{"role": "system", "content": system_prompt}]
-        # Add history (last 5 messages to avoid token limit)
+        # Add history (last 5 messages)
         messages.extend(history[-5:])
         messages.append({"role": "user", "content": query})
 
@@ -92,8 +94,10 @@ class GroqService:
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
                 model=self.model,
-                temperature=0.1
+                temperature=0.2 # Slightly higher for better synthesis
             )
+            
+            answer = chat_completion.choices[0].message.content
             
             # Map citations
             citations = [
@@ -107,9 +111,9 @@ class GroqService:
             ]
             
             return {
-                "answer": chat_completion.choices[0].message.content,
+                "answer": answer,
                 "citations": citations
             }
         except Exception as e:
             logging.error("Groq API call failed", exc_info=True)
-            return {"error": str(e), "answer": "An error occurred during generation.", "citations": []}
+            return {"error": str(e), "answer": "I apologize, but I encountered an error while processing your request. Please try again or ask another question.", "citations": []}

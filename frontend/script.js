@@ -75,37 +75,53 @@ function appendMessage(sender, text, citations = []) {
     // SAFETY: Clean up any accidentally leaked metadata tags (like [[ DOCUMENT: ... ]])
     processedText = processedText.replace(/\[\[ DOCUMENT:.*?\| LOCATION:.*? \]\]/g, '');
 
+    let citationMatched = false;
+
     if (citations && citations.length > 0) {
         citations.forEach(cite => {
             const escapedId = cite.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regexPatterns = [
-                new RegExp(`\\[ID: ${escapedId}\\]`, 'g'),
-                new RegExp(`\\[${escapedId}\\]`, 'g'),
-                new RegExp(`\\(${escapedId}\\)`, 'g'),
-                new RegExp(`${escapedId}`, 'g') // Handle raw IDs
-            ];
+            // Strict [ID: ...] format replacement
+            const inlineRegex = new RegExp(`\\[ID: ${escapedId}\\]`, 'g');
             
-            const btnLabel = cite.section && cite.section !== 'N/A' 
-                ? `[Proof: ${cite.section}]` 
-                : `[Proof: Page ${cite.page}]`;
+            const btnLabel = (cite.section && cite.section !== 'N/A' && cite.section.length < 30)
+                ? `${cite.section}` 
+                : `Page ${cite.page}`;
             
             const btnHtml = `<button onclick="viewProof('${cite.url}', ${cite.page || 1})" 
-                         class="btn btn-sm btn-link p-0 fw-bold text-decoration-none citation-inline-btn">
-                    ${btnLabel}
+                         class="btn btn-sm btn-outline-primary py-0 px-1 mx-1 fw-bold text-decoration-none citation-inline-btn"
+                         title="Verify Evidence: ${cite.title}">
+                    <i class="bi bi-file-earmark-check me-1"></i>${btnLabel}
                 </button>`;
 
-            regexPatterns.forEach(pattern => {
-                processedText = processedText.replace(pattern, btnHtml);
-            });
+            if (inlineRegex.test(processedText)) {
+                processedText = processedText.replace(inlineRegex, btnHtml);
+                citationMatched = true;
+            }
         });
+
+        // FALLBACK: If no inline citations were successfully matched, add them at the bottom
+        if (sender === 'bot' && !citationMatched) {
+            let sourcesHtml = '<div class="mt-3 border-top pt-2"><small class="text-muted d-block mb-1">Source References:</small><div class="d-flex flex-wrap gap-1">';
+            citations.forEach(cite => {
+                const btnLabel = (cite.section && cite.section !== 'N/A' && cite.section.length < 30)
+                    ? `${cite.section}` 
+                    : `Page ${cite.page}`;
+                sourcesHtml += `<button onclick="viewProof('${cite.url}', ${cite.page || 1})" 
+                         class="btn btn-sm btn-outline-secondary py-0 px-1 fw-normal citation-fallback-btn">
+                    <i class="bi bi-link-45deg"></i> ${cite.title} (${btnLabel})
+                </button>`;
+            });
+            sourcesHtml += '</div></div>';
+            processedText += sourcesHtml;
+        }
     }
 
-    // Clean up extra spaces or artifacts from replacements
-    processedText = processedText.replace(/\s{2,}/g, ' ').replace(/\( \)/g, '').replace(/\[ \]/g, '');
+    // Clean up extra spaces or artifacts
+    processedText = processedText.replace(/\s{2,}/g, ' ');
 
     msgDiv.innerHTML = `
         <div class="message-content">${processedText}</div>
-        ${sender === 'bot' ? '<div class="message-meta">Source: Verified Official Law</div>' : ''}
+        ${sender === 'bot' ? '<div class="message-meta">Verified Legal Data • Non-Advice</div>' : ''}
     `;
     
     chatBox.appendChild(msgDiv);
