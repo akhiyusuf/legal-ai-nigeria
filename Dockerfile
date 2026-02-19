@@ -1,24 +1,32 @@
 # Use official Python 3.11 slim image
 FROM python:3.11-slim
 
-# Install system dependencies (build-essential, git, poppler, tesseract)
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    git \
-    poppler-utils \
-    tesseract-ocr \
-    libtesseract-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Set environment variables for non-interactive installs and CPU-only torch
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
 # Copy requirements and .env.example
 COPY requirements.txt .
 
-# Install dependencies (CPU-only torch first to save space)
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r requirements.txt
+# Install EVERYTHING in one layer to minimize layers and image size
+# 1. System deps needed for build & run
+# 2. CPU-only torch
+# 3. App requirements
+# 4. Cleanup build-only deps and apt cache
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    git \
+    poppler-utils \
+    tesseract-ocr \
+    libtesseract-dev && \
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install -r requirements.txt && \
+    apt-get purge -y --auto-remove build-essential git && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the rest of the application
 COPY . .
