@@ -42,9 +42,29 @@ def init_services():
 
 @app.on_event("startup")
 async def startup_event():
+    logging.info("Starting up Legal AI backend...")
+    
+    # Pre-download models to avoid first-request latency/timeouts
+    try:
+        logging.info("Checking for SpaCy model 'en_core_web_sm'...")
+        import spacy
+        if not spacy.util.is_package("en_core_web_sm"):
+            spacy.cli.download("en_core_web_sm")
+            logging.info("Downloaded 'en_core_web_sm'")
+            
+        logging.info("Checking for SentenceTransformer model...")
+        from sentence_transformers import SentenceTransformer
+        # This will download the model if not cached
+        SentenceTransformer('all-MiniLM-L6-v2')
+        logging.info("SentenceTransformer model ready.")
+        
+    except Exception as e:
+        logging.error(f"Error during model initialization: {e}")
+
     # If the vector DB/Graph doesn't exist, we might need to run ingestion.
     # For now, just initialize services.
     init_services()
+
     
     # Start Scheduler
     scheduler = BackgroundScheduler()

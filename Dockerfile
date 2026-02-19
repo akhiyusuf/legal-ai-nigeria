@@ -10,13 +10,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy requirements and model download script
 COPY requirements.txt .
-COPY scripts/download_models.py scripts/
 
-# Install dependencies and pre-download models
-RUN pip install --no-cache-dir --user -r requirements.txt && \
-    python scripts/download_models.py
+# 1. Install CPU-only PyTorch specifically to save ~2GB+ of space
+# 2. Install other dependencies
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # --- Runtime Stage ---
 FROM python:3.11-slim
@@ -34,12 +33,8 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
-# Copy the rest of the application (respecting .dockerignore)
+# Copy the rest of the application
 COPY . .
-
-# Set environment variable to store models in a persistent way
-ENV SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers
-ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/hub
 
 # Expose the FastAPI port
 EXPOSE 8000
